@@ -73,7 +73,9 @@ function App() {
       <div style={{ marginTop: 20, fontSize: 12, color: "#777" }}>
         This tool works for public chats only.
         <br />
-        For best results, paste a link to an openly viewable ChatGPT, Gemini, or Claude conversation.<br/>
+        For best results, paste a link to an openly viewable ChatGPT, Gemini, or
+        Claude conversation.
+        <br />
         Parsing is naive; success depends on page structure.
       </div>
     </div>
