@@ -29,7 +29,9 @@ describe("App Component", () => {
 
     test("renders helper text about public chats", () => {
       render(<App />);
-      const helperText = screen.getByText(/This tool works for public chats only./i);
+      const helperText = screen.getByText(
+        /This tool works for public chats only./i
+      );
       expect(helperText).toBeInTheDocument();
     });
   });
@@ -46,8 +48,8 @@ describe("App Component", () => {
     });
 
     test("input field is disabled during loading", async () => {
-      global.fetch = jest.fn(() =>
-        new Promise(() => {}) // Never resolves to keep loading state
+      global.fetch = jest.fn(
+        () => new Promise(() => {}) // Never resolves to keep loading state
       );
 
       render(<App />);
@@ -119,9 +121,7 @@ describe("App Component", () => {
     });
 
     test("shows error when fetch fails", async () => {
-      global.fetch = jest.fn(() =>
-        Promise.reject(new Error("Network error"))
-      );
+      global.fetch = jest.fn(() => Promise.reject(new Error("Network error")));
 
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
@@ -179,7 +179,9 @@ describe("App Component", () => {
       fireEvent.click(buttonElement);
 
       await waitFor(() => {
-        const errorElement = screen.getByText(/No chat found. Try another URL./i);
+        const errorElement = screen.getByText(
+          /No chat found. Try another URL./i
+        );
         expect(errorElement).toBeInTheDocument();
       });
     });
@@ -257,7 +259,9 @@ describe("App Component", () => {
       fireEvent.click(buttonElement);
 
       await waitFor(() => {
-        expect(screen.getByText(/Please enter a chat page URL./i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/Please enter a chat page URL./i)
+        ).toBeInTheDocument();
       });
 
       // Second attempt with URL
@@ -275,7 +279,9 @@ describe("App Component", () => {
       fireEvent.click(buttonElement);
 
       await waitFor(() => {
-        expect(screen.queryByText(/Please enter a chat page URL./i)).not.toBeInTheDocument();
+        expect(
+          screen.queryByText(/Please enter a chat page URL./i)
+        ).not.toBeInTheDocument();
       });
     });
   });
@@ -353,7 +359,10 @@ describe("App Component", () => {
           "href",
           expect.stringContaining("data:text/json")
         );
-        expect(mockLink.setAttribute).toHaveBeenCalledWith("download", "chat.json");
+        expect(mockLink.setAttribute).toHaveBeenCalledWith(
+          "download",
+          "chat.json"
+        );
         expect(mockLink.click).toHaveBeenCalled();
       });
     });
