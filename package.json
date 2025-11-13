@@ -1,1 +1,13 @@
-{\n  "name": "llm-chat-downloader",\n  "version": "1.0.0",\n  "description": "A simple chat downloader tool.",\n  "main": "index.js",\n  "scripts": {\n    "predeploy": "npm run build",\n    "deploy": "gh-pages -d build"\n  },\n  "homepage": "https://jhojin7.github.io/llm-chat-downloader",\n  "author": "jhojin7",\n  "license": "MIT"\n}
+{
+  "name": "llm-chat-downloader",
+  "version": "1.0.0",
+  "description": "A simple chat downloader tool.",
+  "main": "index.js",
+  "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  },
+  "homepage": "https://jhojin7.github.io/llm-chat-downloader",
+  "author": "jhojin7",
+  "license": "MIT"
+}
