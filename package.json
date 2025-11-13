@@ -46,5 +46,12 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "gh-pages": "^6.3.0",
     "prettier": "^3.6.2"
+  },
+  "jest": {
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "src/index.js",
+      "src/setupTests.js"
+    ]
   }
 }
