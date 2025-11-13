@@ -13,7 +13,8 @@
     "lint": "eslint src --ext .js,.jsx",
     "lint:fix": "eslint src --ext .js,.jsx --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,json,css,md}\""
+    "format:check": "prettier --check \"src/**/*.{js,jsx,json,css,md}\"",
+    "prepare": "husky"
   },
   "homepage": "https://jhojin7.github.io/llm-chat-downloader",
   "author": "jhojin7",
@@ -45,6 +46,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "gh-pages": "^6.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "prettier": "^3.6.2"
   },
   "jest": {
@@ -52,6 +55,12 @@
       "/node_modules/",
       "src/index.js",
       "src/setupTests.js"
+    ]
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
     ]
   }
 }
