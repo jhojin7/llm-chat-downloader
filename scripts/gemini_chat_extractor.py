@@ -10,8 +10,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from crawl4ai import AsyncWebCrawler
-from crawl4ai.extraction_strategy import JsonCssExtractionStrategy, LLMExtractionStrategy
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from bs4 import BeautifulSoup
 
 
@@ -32,26 +31,42 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Use stealth mode and more realistic browser settings
-    async with AsyncWebCrawler(
-        verbose=True,
-        headless=True,
+    # Configure browser with anti-detection settings
+    browser_config = BrowserConfig(
         browser_type="chromium",
-        user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ) as crawler:
-        # Crawl the page with longer wait time
-        result = await crawler.arun(
-            url=url,
-            bypass_cache=True,
-            js_code=[
-                "await new Promise(resolve => setTimeout(resolve, 2000));",
-                "window.scrollTo(0, document.body.scrollHeight);",
-                "await new Promise(resolve => setTimeout(resolve, 1000));",
-            ],
-            delay_before_return_html=5.0,  # Wait longer for content to load
-            wait_for_selector="body",
-            page_timeout=60000
-        )
+        headless=True,
+        verbose=True,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        extra_args=[
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+        ]
+    )
+
+    # Configure crawler run with stealth
+    run_config = CrawlerRunConfig(
+        cache_mode=CacheMode.BYPASS,
+        page_timeout=60000,
+        delay_before_return_html=3.0,
+        wait_for="js:() => document.readyState === 'complete'",
+        js_code="""
+        // Wait for page to load
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Scroll to load dynamic content
+        window.scrollTo(0, document.body.scrollHeight / 2);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        window.scrollTo(0, document.body.scrollHeight);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        window.scrollTo(0, 0);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        """,
+        remove_overlay_elements=True,
+    )
+
+    async with AsyncWebCrawler(config=browser_config) as crawler:
+        result = await crawler.arun(url=url, config=run_config)
 
         if not result.success:
             print(f"Failed to crawl {url}: {result.error_message}")
