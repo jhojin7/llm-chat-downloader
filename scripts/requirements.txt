@@ -1,0 +1,9 @@
+# Python dependencies for Gemini chat extraction
+
+crawl4ai>=0.7.7
+playwright>=1.49.0
+beautifulsoup4>=4.12
+aiohttp>=3.11.11
+aiofiles>=24.1.0
+lxml>=5.3
+python-dotenv>=1.0
