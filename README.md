@@ -89,13 +89,75 @@ The app will be deployed to: `https://llm-chat-downloader-[random-hash]-uc.a.run
      --memory 512Mi
    ```
 
+## Continuous Deployment with GitHub Actions
+
+This repository includes a GitHub Actions workflow that automatically deploys to Cloud Run on every push to the `main` branch.
+
+### Setting Up Continuous Deployment
+
+1. **Create a GCP Service Account**
+   ```bash
+   # Set your project ID
+   export PROJECT_ID="your-project-id"
+
+   # Create service account
+   gcloud iam service-accounts create github-actions-deployer \
+     --display-name "GitHub Actions Deployer"
+
+   # Grant necessary roles
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/run.admin"
+
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/storage.admin"
+
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/iam.serviceAccountUser"
+   ```
+
+2. **Create and Download Service Account Key**
+   ```bash
+   gcloud iam service-accounts keys create key.json \
+     --iam-account=github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com
+   ```
+
+3. **Add GitHub Secrets**
+
+   Go to your GitHub repository settings: `Settings` → `Secrets and variables` → `Actions`
+
+   Add the following secrets:
+
+   - **GCP_PROJECT_ID**: Your GCP project ID
+   - **GCP_SA_KEY**: The contents of the `key.json` file (paste the entire JSON)
+
+4. **Push to Main Branch**
+
+   Once configured, any push to the `main` branch will automatically:
+   - Run linting and tests (via CI workflow)
+   - Build the Docker image
+   - Push to Google Container Registry
+   - Deploy to Cloud Run
+   - Display the service URL in the GitHub Actions summary
+
+### Workflow Details
+
+The deployment workflow (`.github/workflows/deploy-cloud-run.yml`) includes:
+- Automatic triggering on push to main (after CI passes)
+- Docker image build and push to GCR
+- Cloud Run deployment with optimized settings
+- Deployment summary with service URL
+
 ### Configuration
 
-You can customize the deployment by editing `cloudbuild.yaml`:
+You can customize the deployment by editing `.github/workflows/deploy-cloud-run.yml` or `cloudbuild.yaml`:
 
-- **Region**: Change `us-central1` to your preferred region
-- **Memory**: Adjust `512Mi` based on your needs
+- **Region**: Change `REGION` environment variable (default: `us-central1`)
+- **Memory**: Adjust `--memory` flag (default: `512Mi`)
 - **Authentication**: Remove `--allow-unauthenticated` to require authentication
+- **Scaling**: Adjust `--min-instances` and `--max-instances` for auto-scaling
 
 ### Updating the Deployment
 
