@@ -1,8 +1,9 @@
 # LLM Chat Downloader
 
-This is a minimal React application for downloading chat logs from various sources. 
+This is a minimal React application for downloading chat logs from various sources.
 
-## Instructions
+## Local Development
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/jhojin7/llm-chat-downloader.git
@@ -20,3 +21,110 @@ This is a minimal React application for downloading chat logs from various sourc
    npm start
    ```
 5. Access the app in your browser at `http://localhost:3000`.
+
+## Deployment to GCP Cloud Run
+
+### Prerequisites
+
+Before deploying, you need to set up the following:
+
+1. **GCP Account and Project**
+   - Create a GCP account at https://cloud.google.com
+   - Create a new project or use an existing one
+   - Note your project ID
+
+2. **Install Google Cloud SDK**
+   ```bash
+   # For macOS
+   brew install google-cloud-sdk
+
+   # For other OS, visit: https://cloud.google.com/sdk/docs/install
+   ```
+
+3. **Authenticate with GCP**
+   ```bash
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+
+4. **Enable Required APIs**
+   ```bash
+   gcloud services enable cloudbuild.googleapis.com
+   gcloud services enable run.googleapis.com
+   gcloud services enable containerregistry.googleapis.com
+   ```
+
+### Deployment Options
+
+#### Option 1: Deploy using Cloud Build (Recommended)
+
+This method uses the `cloudbuild.yaml` configuration for automated deployment:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+The app will be deployed to: `https://llm-chat-downloader-[random-hash]-uc.a.run.app`
+
+#### Option 2: Manual Deployment
+
+1. **Build the Docker image**
+   ```bash
+   docker build -t gcr.io/YOUR_PROJECT_ID/llm-chat-downloader:latest .
+   ```
+
+2. **Push to Google Container Registry**
+   ```bash
+   docker push gcr.io/YOUR_PROJECT_ID/llm-chat-downloader:latest
+   ```
+
+3. **Deploy to Cloud Run**
+   ```bash
+   gcloud run deploy llm-chat-downloader \
+     --image gcr.io/YOUR_PROJECT_ID/llm-chat-downloader:latest \
+     --region us-central1 \
+     --platform managed \
+     --allow-unauthenticated \
+     --port 8080 \
+     --memory 512Mi
+   ```
+
+### Configuration
+
+You can customize the deployment by editing `cloudbuild.yaml`:
+
+- **Region**: Change `us-central1` to your preferred region
+- **Memory**: Adjust `512Mi` based on your needs
+- **Authentication**: Remove `--allow-unauthenticated` to require authentication
+
+### Updating the Deployment
+
+To update an existing deployment:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+This will build a new version and automatically deploy it to Cloud Run.
+
+### Monitoring and Logs
+
+View logs for your Cloud Run service:
+
+```bash
+gcloud run services logs read llm-chat-downloader --region us-central1
+```
+
+### Costs
+
+Cloud Run pricing is based on:
+- Request count
+- CPU and memory allocation
+- Networking
+
+The free tier includes:
+- 2 million requests per month
+- 360,000 GB-seconds of memory
+- 180,000 vCPU-seconds
+
+For more details: https://cloud.google.com/run/pricing
