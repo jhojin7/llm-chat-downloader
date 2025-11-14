@@ -7,3 +7,4 @@ aiohttp>=3.11.11
 aiofiles>=24.1.0
 lxml>=5.3
 python-dotenv>=1.0
+markdownify>=1.2.0  # HTML to Markdown conversion (alternative: html2text)
