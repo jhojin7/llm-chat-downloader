@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
@@ -14,7 +13,7 @@ describe("App Component", () => {
     test("renders input field for URL", () => {
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       expect(inputElement).toBeInTheDocument();
     });
@@ -30,7 +29,7 @@ describe("App Component", () => {
     test("renders helper text about public chats", () => {
       render(<App />);
       const helperText = screen.getByText(
-        /This tool works for public chats only./i
+        /This tool extracts conversation history from public Gemini share links./i
       );
       expect(helperText).toBeInTheDocument();
     });
@@ -41,7 +40,7 @@ describe("App Component", () => {
       const user = userEvent.setup();
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       await user.type(inputElement, "https://example.com/chat");
       expect(inputElement).toHaveValue("https://example.com/chat");
@@ -54,7 +53,7 @@ describe("App Component", () => {
 
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
@@ -125,7 +124,7 @@ describe("App Component", () => {
 
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
@@ -142,13 +141,14 @@ describe("App Component", () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
           ok: false,
-          status: 404,
+          status: 500,
+          json: () => Promise.resolve({ error: "Server error" }),
         })
       );
 
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
@@ -156,22 +156,22 @@ describe("App Component", () => {
       fireEvent.click(buttonElement);
 
       await waitFor(() => {
-        const errorElement = screen.getByText(/Could not fetch the page./i);
+        const errorElement = screen.getByText(/Server error/i);
         expect(errorElement).toBeInTheDocument();
       });
     });
 
-    test("shows error when no chat found in HTML", async () => {
+    test("shows error when no chat data received", async () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
           ok: true,
-          text: () => Promise.resolve("<html><body>No chat here</body></html>"),
+          json: () => Promise.resolve({ success: false }),
         })
       );
 
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
@@ -180,26 +180,27 @@ describe("App Component", () => {
 
       await waitFor(() => {
         const errorElement = screen.getByText(
-          /No chat found. Try another URL./i
+          /No chat data received from server/i
         );
         expect(errorElement).toBeInTheDocument();
       });
     });
 
-    test("successfully downloads chat when HTML contains messages", async () => {
-      const mockHtml = `
-        <html>
-          <body>
-            <div class="message">Hello, how are you?</div>
-            <div class="message">I'm doing great, thanks!</div>
-          </body>
-        </html>
-      `;
+    test("successfully downloads chat when API returns data", async () => {
+      const mockData = {
+        success: true,
+        data: {
+          messages: [
+            { role: "user", content: "Hello" },
+            { role: "assistant", content: "Hi there!" },
+          ],
+        },
+      };
 
       global.fetch = jest.fn(() =>
         Promise.resolve({
           ok: true,
-          text: () => Promise.resolve(mockHtml),
+          json: () => Promise.resolve(mockData),
         })
       );
 
@@ -207,7 +208,7 @@ describe("App Component", () => {
       const mockLink = setupDownloadMocks();
 
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
@@ -222,7 +223,7 @@ describe("App Component", () => {
       expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
     });
 
-    test("button shows 'Downloading...' during loading", async () => {
+    test("button shows 'Extracting...' during loading", async () => {
       let resolvePromise;
       const fetchPromise = new Promise((resolve) => {
         resolvePromise = resolve;
@@ -232,7 +233,7 @@ describe("App Component", () => {
 
       render(<App />);
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
@@ -240,14 +241,18 @@ describe("App Component", () => {
       fireEvent.click(buttonElement);
 
       await waitFor(() => {
-        expect(buttonElement).toHaveTextContent(/Downloading.../i);
+        expect(buttonElement).toHaveTextContent(/Extracting.../i);
         expect(buttonElement).toBeDisabled();
       });
 
       // Resolve the promise to clean up
       resolvePromise({
         ok: true,
-        text: () => Promise.resolve('<div class="message">test</div>'),
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: { messages: [] },
+          }),
       });
     });
 
@@ -268,12 +273,16 @@ describe("App Component", () => {
       global.fetch = jest.fn(() =>
         Promise.resolve({
           ok: true,
-          text: () => Promise.resolve('<div class="message">test</div>'),
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: { messages: [] },
+            }),
         })
       );
 
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       await userEvent.type(inputElement, "https://example.com/chat");
       fireEvent.click(buttonElement);
@@ -286,7 +295,7 @@ describe("App Component", () => {
     });
   });
 
-  describe("HTML Parsing", () => {
+  describe("API Integration", () => {
     let originalCreateElement;
     let originalAppendChild;
 
@@ -323,47 +332,46 @@ describe("App Component", () => {
       return mockLink;
     };
 
-    test("extracts messages with different class patterns", async () => {
-      const mockHtml = `
-        <html>
-          <body>
-            <div class="user-message">User message</div>
-            <div class="model-message">Model response</div>
-            <div class="prompt">Another prompt</div>
-            <div role="presentation">Presentation content</div>
-            <div class="markdown">Markdown content</div>
-          </body>
-        </html>
-      `;
+    test("calls backend API with correct URL and payload", async () => {
+      const mockData = {
+        success: true,
+        data: {
+          messages: [
+            { role: "user", content: "Test message" },
+            { role: "assistant", content: "Test response" },
+          ],
+        },
+      };
 
       global.fetch = jest.fn(() =>
         Promise.resolve({
           ok: true,
-          text: () => Promise.resolve(mockHtml),
+          json: () => Promise.resolve(mockData),
         })
       );
 
       render(<App />);
-      const mockLink = setupDownloadMocks();
+      setupDownloadMocks();
 
       const inputElement = screen.getByPlaceholderText(
-        /Paste public ChatGPT\/Gemini\/Claude chat URL here/i
+        /Paste public Gemini chat URL here/i
       );
       const buttonElement = screen.getByRole("button");
 
-      await userEvent.type(inputElement, "https://example.com/chat");
+      await userEvent.type(inputElement, "https://g.co/gemini/share/123");
       fireEvent.click(buttonElement);
 
       await waitFor(() => {
-        expect(mockLink.setAttribute).toHaveBeenCalledWith(
-          "href",
-          expect.stringContaining("data:text/json")
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/extract"),
+          expect.objectContaining({
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: "https://g.co/gemini/share/123" }),
+          })
         );
-        expect(mockLink.setAttribute).toHaveBeenCalledWith(
-          "download",
-          "chat.json"
-        );
-        expect(mockLink.click).toHaveBeenCalled();
       });
     });
   });

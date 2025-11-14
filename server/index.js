@@ -111,6 +111,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Serve React app for all other routes in production
+/* istanbul ignore next */
 if (process.env.NODE_ENV === "production") {
   app.get("*", (_req, res) => {
     res.sendFile(path.join(__dirname, "..", "build", "index.html"));
@@ -129,4 +130,11 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start server if this file is run directly
+/* istanbul ignore next */
+if (require.main === module) {
+  startServer();
+}
+
+// Export for testing
+module.exports = { app, ensureTempDir, cleanupOldFiles, TEMP_DIR, startServer };
