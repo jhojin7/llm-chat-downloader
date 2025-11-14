@@ -54,11 +54,11 @@ function App() {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
+    <div style={{ maxWidth: 600, margin: "auto", padding: 20 }}>
       <h3>LLM Chat Downloader</h3>
       <input
         type="text"
-        placeholder="Paste public Gemini chat URL here (e.g., g.co/gemini/share/...)"
+        placeholder="Paste public chat URL (Claude or Gemini share link)"
         value={url}
         style={{ width: "100%", marginBottom: 8, padding: 8 }}
         onChange={(e) => setUrl(e.target.value)}
@@ -73,11 +73,16 @@ function App() {
       </button>
       {error && <div style={{ color: "red", marginTop: 8 }}>{error}</div>}
       <div style={{ marginTop: 20, fontSize: 12, color: "#777" }}>
-        This tool extracts conversation history from public Gemini share links.
+        This tool extracts conversation history from public share links.
+        <br />
+        <strong>Supported platforms:</strong>
+        <br />
+        • Claude: https://claude.ai/share/...
+        <br />
+        • Gemini: https://g.co/gemini/share/...
+        <br />
         <br />
         Supports markdown formatting and hyperlinks.
-        <br />
-        Example: https://g.co/gemini/share/4079b2f26c6f
       </div>
     </div>
   );

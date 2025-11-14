@@ -58,13 +58,20 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
         # FIXED: Changed from headless=False to True to prevent manual browser closure issues
         browser = await p.chromium.launch(
             headless=True,  # Run in headless mode for stability
-            args=["--no-sandbox", "--disable-setuid-sandbox"],
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-web-security",
+            ],
         )
 
         # Create context
         context = await browser.new_context(
             viewport={"width": 1920, "height": 1080},
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            ignore_https_errors=True,
         )
 
         page = await context.new_page()
