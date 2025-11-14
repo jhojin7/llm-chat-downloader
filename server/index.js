@@ -43,6 +43,18 @@ async function cleanupOldFiles() {
   }
 }
 
+// Determine which extractor to use based on URL
+function getExtractorScript(url) {
+  if (url.includes("claude.ai/share")) {
+    return "extract_claude.py";
+  } else if (url.includes("g.co/gemini") || url.includes("gemini.google.com")) {
+    return "extract_gemini.py";
+  }
+  throw new Error(
+    "Unsupported URL format. Only Claude and Gemini share links are supported."
+  );
+}
+
 // API endpoint to extract chat from URL
 app.post("/api/extract", async (req, res) => {
   const { url } = req.body;
@@ -58,17 +70,26 @@ app.post("/api/extract", async (req, res) => {
     return res.status(400).json({ error: "Invalid URL format" });
   }
 
+  // Determine which extractor to use
+  let scriptName;
+  try {
+    scriptName = getExtractorScript(url);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
   // Generate unique filename
   const sessionId = crypto.randomBytes(8).toString("hex");
   const outputFile = path.join(TEMP_DIR, `chat_${sessionId}.json`);
 
   // Path to Python script
-  const scriptPath = path.join(__dirname, "..", "scripts", "extract_gemini.py");
+  const scriptPath = path.join(__dirname, "..", "scripts", scriptName);
 
   // Execute Python script with uv
-  const command = `cd "${path.dirname(scriptPath)}" && uv run python extract_gemini.py "${url}" "${outputFile}"`;
+  const command = `cd "${path.dirname(scriptPath)}" && uv run python ${scriptName} "${url}" "${outputFile}"`;
 
   console.log(`Extracting chat from: ${url}`);
+  console.log(`Using extractor: ${scriptName}`);
   console.log(`Output file: ${outputFile}`);
 
   exec(command, { timeout: 60000 }, async (error, _stdout, stderr) => {
@@ -137,4 +158,11 @@ if (require.main === module) {
 }
 
 // Export for testing
-module.exports = { app, ensureTempDir, cleanupOldFiles, TEMP_DIR, startServer };
+module.exports = {
+  app,
+  ensureTempDir,
+  cleanupOldFiles,
+  TEMP_DIR,
+  startServer,
+  getExtractorScript,
+};
