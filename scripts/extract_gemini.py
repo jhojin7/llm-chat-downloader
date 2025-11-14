@@ -29,6 +29,9 @@ RECENT CHANGES (2025-11-14):
 - Improved extraction to parse actual Gemini DOM structure (share-turn-viewer)
 - Now extracts separate user/assistant messages with role labels
 - Preserves message ordering and turn numbering
+- Added markdown conversion: assistant responses now include both plain text and markdown
+- Hyperlinks preserved in markdown format: [link text](url)
+- Uses markdownify library (alternative: html2text can also be used)
 """
 
 import asyncio
@@ -38,6 +41,7 @@ from datetime import datetime
 from pathlib import Path
 from patchright.async_api import async_playwright
 from bs4 import BeautifulSoup
+from markdownify import markdownify as md
 
 
 async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
@@ -162,12 +166,15 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
                     # Get the markdown div
                     markdown_div = message_content.find("div", class_="markdown")
                     if markdown_div:
-                        # Extract all text while preserving structure
+                        # Convert HTML to markdown (preserves links and formatting)
+                        response_markdown = md(str(markdown_div), heading_style="ATX")
+
+                        # Also extract plain text for backward compatibility
                         response_text = markdown_div.get_text(
                             separator="\n", strip=True
                         )
 
-                        # Extract hyperlinks
+                        # Extract hyperlinks separately for reference
                         links = []
                         for link in markdown_div.find_all("a", href=True):
                             link_text = link.get_text(strip=True)
@@ -175,18 +182,22 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
                             if link_text and href:
                                 links.append({"text": link_text, "url": href})
 
-                        if response_text:
+                        if response_markdown:
                             msg = {
                                 "index": len(messages),
                                 "turn": turn_idx,
                                 "role": "assistant",
-                                "content": response_text,
+                                "content": response_text,  # Plain text for backward compatibility
+                                "content_markdown": response_markdown.strip(),  # Markdown with links preserved
                             }
                             if links:
-                                msg["links"] = links
+                                msg["links"] = (
+                                    links  # Separate links array for easy reference
+                                )
                             messages.append(msg)
+                            link_count = len(links)
                             print(
-                                f"  Turn {turn_idx} - Assistant: {response_text[:80]}... [{len(links)} links]"
+                                f"  Turn {turn_idx} - Assistant: {response_text[:80]}... [{link_count} links]"
                             )
 
             print(
