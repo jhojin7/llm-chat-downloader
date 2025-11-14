@@ -45,3 +45,6 @@ ENV/
 # Output files from scripts
 output/
 *.debug.html
+
+# Temporary files from backend
+temp/

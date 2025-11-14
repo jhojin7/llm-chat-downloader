@@ -246,6 +246,38 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
 async def main():
     """Main function."""
 
+    # Check for API mode (single URL + output file specified)
+    if len(sys.argv) == 3:
+        # API mode: extract_gemini.py <URL> <output_file>
+        url = sys.argv[1]
+        output_file = sys.argv[2]
+
+        print("\n" + "=" * 60)
+        print("GEMINI CHAT EXTRACTOR - API MODE")
+        print("=" * 60)
+        print(f"URL: {url}")
+        print(f"Output: {output_file}")
+
+        # Extract to temporary directory
+        result = await extract_gemini_chat(url, output_dir="output")
+
+        # Copy the result to the specified output file
+        if "error" not in result:
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+            print(f"✓ Saved to: {output_file}\n")
+        else:
+            # Save error result
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+            print(f"✗ Error saved to: {output_file}\n")
+
+        return
+
     # Default URLs
     urls = [
         "https://g.co/gemini/share/c9cba1e9858a",
