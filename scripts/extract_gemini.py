@@ -166,17 +166,27 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
                         response_text = markdown_div.get_text(
                             separator="\n", strip=True
                         )
+
+                        # Extract hyperlinks
+                        links = []
+                        for link in markdown_div.find_all("a", href=True):
+                            link_text = link.get_text(strip=True)
+                            href = link["href"]
+                            if link_text and href:
+                                links.append({"text": link_text, "url": href})
+
                         if response_text:
-                            messages.append(
-                                {
-                                    "index": len(messages),
-                                    "turn": turn_idx,
-                                    "role": "assistant",
-                                    "content": response_text,
-                                }
-                            )
+                            msg = {
+                                "index": len(messages),
+                                "turn": turn_idx,
+                                "role": "assistant",
+                                "content": response_text,
+                            }
+                            if links:
+                                msg["links"] = links
+                            messages.append(msg)
                             print(
-                                f"  Turn {turn_idx} - Assistant: {response_text[:80]}..."
+                                f"  Turn {turn_idx} - Assistant: {response_text[:80]}... [{len(links)} links]"
                             )
 
             print(
