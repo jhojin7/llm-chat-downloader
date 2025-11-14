@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Simple Gemini Chat Extractor - Works from your local machine
+Gemini Chat Extractor - Extracts complete conversation history from Gemini share links
 
-Since the URLs ARE accessible (you got 133 lines with curl), this script will work
-when run from your local environment, not from this Docker container.
+IMPORTANT NOTES:
+- Gemini share pages typically show only ONE conversation turn (Q&A pair)
+- Some share links MAY contain multiple turns - this script extracts all visible turns
+- The script scrolls to load any lazy-loaded content
 
 SETUP INSTRUCTIONS:
 1. Use uv for Python environment management (project requirement)
@@ -13,13 +15,20 @@ SETUP INSTRUCTIONS:
    $ uv run playwright install chromium
 
 2. Run the script:
-   $ uv run python scripts/extract_gemini.py
+   $ uv run python scripts/extract_gemini.py [URL1] [URL2] ...
 
-TROUBLESHOOTING NOTES:
-- Changed headless=True (was False) - prevents browser close issues
-- Changed wait_until='domcontentloaded' (was 'networkidle') - fixes timeout issues
-- Using timeout=30000 (was 60000) - faster failure for debugging
-- Must use 'uv run python' not bare 'python3' per project CLAUDE.md rules
+TECHNICAL DETAILS:
+- Uses Patchright (patched Playwright) to avoid detection
+- Scrolls page to load all content (lazy-loaded turns)
+- Extracts structured data: user queries + assistant responses
+- Preserves markdown formatting in responses
+- Saves: JSON (structured data), HTML (raw page), PNG (screenshot)
+
+RECENT CHANGES (2025-11-14):
+- Added automatic scrolling to load all conversation turns
+- Improved extraction to parse actual Gemini DOM structure (share-turn-viewer)
+- Now extracts separate user/assistant messages with role labels
+- Preserves message ordering and turn numbering
 """
 
 import asyncio
@@ -95,62 +104,84 @@ async def extract_gemini_chat(url: str, output_dir: str = "output") -> dict:
             page_title = title.text if title else "No title"
             print(f"→ Page title: {page_title}")
 
-            # Extract messages - try multiple strategies
+            # Scroll to bottom to load all messages (lazy-loaded content)
+            print(f"→ Scrolling to load all content...")
+            last_height = await page.evaluate("document.body.scrollHeight")
+            scroll_attempts = 0
+            max_scrolls = 15  # Increased for potentially long conversations
+
+            while scroll_attempts < max_scrolls:
+                # Scroll to bottom
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await asyncio.sleep(1.5)  # Wait for content to load
+
+                # Check if new content loaded
+                new_height = await page.evaluate("document.body.scrollHeight")
+                if new_height == last_height:
+                    break
+                last_height = new_height
+                scroll_attempts += 1
+                print(f"  Scroll #{scroll_attempts}: height={new_height}px")
+
+            print(f"→ Scrolling complete after {scroll_attempts} attempts")
+
+            # Get updated HTML after scrolling
+            html = await page.content()
+            soup = BeautifulSoup(html, "html.parser")
+
+            # Extract messages - Parse conversation turns structure
             messages = []
 
-            # Strategy 1: Look for common Gemini selectors
-            selectors_to_try = [
-                ("message-content", "class contains"),
-                ("model-response", "class contains"),
-                ("user-query", "class contains"),
-                ("conversation-turn", "class contains"),
-                ("[data-message-author]", "attribute"),
-                ('[role="article"]', "role"),
-            ]
+            # Find all conversation turns (share-turn-viewer elements)
+            turn_viewers = soup.find_all("share-turn-viewer")
+            print(f"→ Found {len(turn_viewers)} conversation turns")
 
-            for selector, desc in selectors_to_try:
-                if "class contains" in desc:
-                    elements = soup.select(f'[class*="{selector}"]')
-                else:
-                    elements = soup.select(selector)
-
-                if elements:
-                    print(f"→ Found {len(elements)} elements matching: {selector}")
-                    for idx, elem in enumerate(elements):
-                        text = elem.get_text(separator="\n", strip=True)
-                        if text and len(text) > 20:
+            for turn_idx, turn in enumerate(turn_viewers):
+                # Extract user query
+                user_query = turn.find("user-query")
+                if user_query:
+                    query_text_elem = user_query.find("div", class_="query-text")
+                    if query_text_elem:
+                        query_text = query_text_elem.get_text(
+                            separator="\n", strip=True
+                        )
+                        if query_text:
                             messages.append(
                                 {
                                     "index": len(messages),
-                                    "content": text,
-                                    "selector": selector,
-                                    "role": "user"
-                                    if "user" in selector
-                                    else "assistant"
-                                    if "model" in selector
-                                    else "unknown",
+                                    "turn": turn_idx,
+                                    "role": "user",
+                                    "content": query_text,
                                 }
                             )
-                    if messages:
-                        break
+                            print(f"  Turn {turn_idx} - User: {query_text[:80]}...")
 
-            # Strategy 2: If no messages found, extract all substantial text blocks
-            if not messages:
-                print("→ No specific message elements found, extracting text blocks...")
-                for elem in soup.find_all(["p", "div"]):
-                    text = elem.get_text(strip=True)
-                    if text and len(text) > 30:
-                        classes = " ".join(elem.get("class", []))
-                        messages.append(
-                            {
-                                "index": len(messages),
-                                "content": text,
-                                "element": elem.name,
-                                "classes": classes,
-                            }
+                # Extract assistant response
+                message_content = turn.find("message-content")
+                if message_content:
+                    # Get the markdown div
+                    markdown_div = message_content.find("div", class_="markdown")
+                    if markdown_div:
+                        # Extract all text while preserving structure
+                        response_text = markdown_div.get_text(
+                            separator="\n", strip=True
                         )
+                        if response_text:
+                            messages.append(
+                                {
+                                    "index": len(messages),
+                                    "turn": turn_idx,
+                                    "role": "assistant",
+                                    "content": response_text,
+                                }
+                            )
+                            print(
+                                f"  Turn {turn_idx} - Assistant: {response_text[:80]}..."
+                            )
 
-            print(f"→ Extracted {len(messages)} messages")
+            print(
+                f"→ Extracted {len(messages)} messages from {len(turn_viewers)} turns"
+            )
 
             # Create output data
             chat_data = {
